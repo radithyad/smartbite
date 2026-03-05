@@ -1,8 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, ActivityIndicator, View } from 'react-native';
-import { useState, useEffect } from 'react';
+import { Text, ActivityIndicator, View, Platform } from 'react-native';
+import { useState, useEffect } from 'react'
 import { supabase } from './src/service/supabase';
 import { registerForPushNotifications } from './src/service/notification';
 
@@ -45,8 +45,8 @@ function MainTab() {
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: '#F0F0F0',
-          height: 60,
-          paddingBottom: 8,
+          height: Platform.OS === 'web' ? 70 : 60,
+          paddingBottom: Platform.OS === 'web' ? 10 : 8,
           paddingTop: 6,
           elevation: 10,
           shadowColor: '#000',

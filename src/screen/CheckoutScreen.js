@@ -1,6 +1,7 @@
-import {
+  import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, Image, ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -87,53 +88,63 @@ export default function CheckoutScreen({ route, navigation }) {
       return;
     }
     const metodeTerpilih = METODE_BAYAR.find(m => m.id === metodeBayar);
-    Alert.alert(
-      'Konfirmasi Pesanan',
-      `Pesan dari ${toko.nama}\nTotal: Rp ${totalHarga.toLocaleString('id-ID')}\nBayar via: ${metodeTerpilih.label}\n\nLanjutkan?`,
-      [
+    const title = 'Konfirmasi Pesanan';
+    const message = `Pesan dari ${toko.nama}\nTotal: Rp ${totalHarga.toLocaleString('id-ID')}\nBayar via: ${metodeTerpilih.label}\n\nLanjutkan?`;
+
+    const onConfirm = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { Alert.alert('Error', 'Sesi login habis, silakan login ulang.'); return; }
+        
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            customer_id: user.id,
+            toko_id: toko.id,
+            total_harga: totalHarga,
+            metode_bayar: metodeTerpilih.label,
+            bukti_bayar: buktiBayar,
+            catatan: catatan,
+            status: 'menunggu',
+          })
+          .select()
+          .single();
+          
+        if (orderError) { Alert.alert('Gagal Memesan', orderError.message); return; }
+        
+        const orderItems = itemDiKeranjang.map(menu => ({
+          order_id: orderData.id,
+          menu_id: menu.id,
+          nama_menu: menu.nama,
+          harga: menu.harga,
+          qty: keranjang[menu.id],
+        }));
+        
+        const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+        if (itemsError) { Alert.alert('Gagal Memesan', itemsError.message); return; }
+        
+        navigation.navigate('StatusOrder', {
+          toko, totalHarga, catatan,
+          metodeBayar: metodeTerpilih,
+          itemDiKeranjang, keranjang,
+          orderId: orderData.id,
+        });
+      } catch (err) {
+        Alert.alert('Error', 'Terjadi kesalahan, coba lagi ya!');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`${title}\n\n${message}`);
+      if (confirmed) {
+        await onConfirm();
+      }
+    } else {
+      Alert.alert(title, message, [
         { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Pesan Sekarang!',
-          onPress: async () => {
-            try {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (!user) { Alert.alert('Error', 'Sesi login habis, silakan login ulang.'); return; }
-              const { data: orderData, error: orderError } = await supabase
-                .from('orders')
-                .insert({
-                  customer_id: user.id,
-                  toko_id: toko.id,
-                  total_harga: totalHarga,
-                  metode_bayar: metodeTerpilih.label,
-                  bukti_bayar: buktiBayar,
-                  catatan: catatan,
-                  status: 'menunggu',
-                })
-                .select()
-                .single();
-              if (orderError) { Alert.alert('Gagal Memesan', orderError.message); return; }
-              const orderItems = itemDiKeranjang.map(menu => ({
-                order_id: orderData.id,
-                menu_id: menu.id,
-                nama_menu: menu.nama,
-                harga: menu.harga,
-                qty: keranjang[menu.id],
-              }));
-              const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-              if (itemsError) { Alert.alert('Gagal Memesan', itemsError.message); return; }
-              navigation.navigate('StatusOrder', {
-                toko, totalHarga, catatan,
-                metodeBayar: metodeTerpilih,
-                itemDiKeranjang, keranjang,
-                orderId: orderData.id,
-              });
-            } catch (err) {
-              Alert.alert('Error', 'Terjadi kesalahan, coba lagi ya!');
-            }
-          },
-        },
-      ]
-    );
+        { text: 'Pesan Sekarang!', onPress: onConfirm },
+      ]);
+    }
   };
 
   return (
