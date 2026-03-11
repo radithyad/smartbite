@@ -131,7 +131,7 @@ function VendorTab() {
         },
       })}
     >
-      <Tab.Screen name="VendorDashboard" component={VendorDashboardScreen} options={{ tabBarLabel: 'Beranda' }} />
+      <Tab.Screen name="VendorDashboard" component={VendorDashboardScreen} options={{ tabBarLabel: 'Dashboard' }} />
       <Tab.Screen name="VendorPesanan"   component={VendorPesananScreen}   options={{ tabBarLabel: 'Pesanan' }} />
       <Tab.Screen name="VendorMenu"      component={VendorMenuScreen}      options={{ tabBarLabel: 'Menu' }} />
     </Tab.Navigator>
@@ -205,6 +205,8 @@ export default function App() {
           // ── Vendor ──
           <>
             <Stack.Screen name="VendorMain"          component={VendorTab} />
+            <Stack.Screen name="VendorProfil"        component={VendorProfilScreen} />
+            <Stack.Screen name="VendorToko"          component={VendorTokoScreen} />
             <Stack.Screen name="VendorDetailPesanan" component={VendorDetailPesananScreen} />
             <Stack.Screen name="VendorAddMenu"    component={VendorAddMenuScreen} />
             <Stack.Screen name="VendorEditMenu"      component={VendorEditMenuScreen} />

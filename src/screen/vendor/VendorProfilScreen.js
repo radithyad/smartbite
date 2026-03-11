@@ -8,6 +8,7 @@ const DUMMY_PROFIL = {
   username: 'bu_sari_warung',
   email: 'busari@email.com',
   no_hp: '+6281234567890',
+  foto_url: null,
 };
 
 const DUMMY_TOKO = {
@@ -15,6 +16,9 @@ const DUMMY_TOKO = {
   kategori: 'Nasi & Lauk',
   emoji: '🍱',
   aktif: true,
+  jam_buka: '07:00',
+  jam_tutup: '16:00',
+  deskripsi: 'Warung makan dengan menu nasi dan lauk pauk yang lezat dan terjangkau.',
 };
 
 const DUMMY_STATS = {
@@ -34,11 +38,14 @@ export default function VendorProfilScreen({ navigation }) {
     ]);
   };
 
-  const MenuItem = ({ emoji, label, onPress, danger }) => (
+  const MenuItem = ({ emoji, label, sub, onPress, danger, chevron = true }) => (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
       <Text style={styles.menuItemEmoji}>{emoji}</Text>
-      <Text style={[styles.menuItemLabel, danger && { color: '#EF5350' }]}>{label}</Text>
-      <Text style={styles.menuItemChevron}>›</Text>
+      <View style={styles.menuItemContent}>
+        <Text style={[styles.menuItemLabel, danger && { color: '#EF5350' }]}>{label}</Text>
+        {sub ? <Text style={styles.menuItemSub}>{sub}</Text> : null}
+      </View>
+      {chevron && <Text style={styles.menuItemChevron}>›</Text>}
     </TouchableOpacity>
   );
 
@@ -78,50 +85,54 @@ export default function VendorProfilScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Toko info */}
-          <View style={styles.tokoCard}>
-            <View style={styles.tokoCardLeft}>
-              <Text style={styles.tokoEmoji}>{DUMMY_TOKO.emoji}</Text>
-              <View>
+          {/* ── Toko Section ── */}
+          <Text style={styles.sectionTitle}>Toko Saya</Text>
+          <TouchableOpacity style={styles.tokoCard} onPress={() => navigation.navigate('VendorToko')} activeOpacity={0.8}>
+            <Text style={styles.tokoEmoji}>{DUMMY_TOKO.emoji}</Text>
+            <View style={styles.tokoInfo}>
+              <View style={styles.tokoTopRow}>
                 <Text style={styles.tokoNama}>{DUMMY_TOKO.nama}</Text>
-                <Text style={styles.tokoKategori}>{DUMMY_TOKO.kategori}</Text>
+                <View style={[styles.tokoBadge, { backgroundColor: DUMMY_TOKO.aktif ? '#E8F5E9' : '#FFEBEE' }]}>
+                  <Text style={[styles.tokoBadgeText, { color: DUMMY_TOKO.aktif ? '#2E7D32' : '#C62828' }]}>
+                    {DUMMY_TOKO.aktif ? '🟢 Buka' : '🔴 Tutup'}
+                  </Text>
+                </View>
               </View>
+              <Text style={styles.tokoKategori}>{DUMMY_TOKO.kategori}</Text>
+              <Text style={styles.tokoJam}>🕐 {DUMMY_TOKO.jam_buka} – {DUMMY_TOKO.jam_tutup}</Text>
             </View>
-            <View style={[styles.tokoBadge, { backgroundColor: DUMMY_TOKO.aktif ? '#E8F5E9' : '#FFEBEE' }]}>
-              <Text style={[styles.tokoBadgeText, { color: DUMMY_TOKO.aktif ? '#2E7D32' : '#C62828' }]}>
-                {DUMMY_TOKO.aktif ? '🟢 Buka' : '🔴 Tutup'}
-              </Text>
-            </View>
-          </View>
+            <Text style={styles.menuItemChevron}>›</Text>
+          </TouchableOpacity>
 
-          {/* Info akun */}
+          {/* ── Akun Section ── */}
           <Text style={styles.sectionTitle}>Informasi Akun</Text>
           <View style={styles.card}>
             {[
-              { label: 'Email', value: DUMMY_PROFIL.email, icon: '📧' },
-              { label: 'Nomor HP', value: DUMMY_PROFIL.no_hp, icon: '📱' },
+              { label: 'Email',    value: DUMMY_PROFIL.email,  icon: '📧' },
+              { label: 'Nomor HP', value: DUMMY_PROFIL.no_hp,  icon: '📱' },
               { label: 'Username', value: `@${DUMMY_PROFIL.username}`, icon: '👤' },
-            ].map((item) => (
-              <View key={item.label} style={styles.infoRow}>
-                <Text style={styles.infoIcon}>{item.icon}</Text>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>{item.label}</Text>
-                  <Text style={styles.infoValue}>{item.value}</Text>
+            ].map((item, i, arr) => (
+              <View key={item.label}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoIcon}>{item.icon}</Text>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>{item.label}</Text>
+                    <Text style={styles.infoValue}>{item.value}</Text>
+                  </View>
                 </View>
+                {i < arr.length - 1 && <View style={styles.itemDivider} />}
               </View>
             ))}
           </View>
 
-          {/* Menu items */}
-          <Text style={styles.sectionTitle}>Kelola</Text>
+          {/* ── Pengaturan ── */}
+          <Text style={styles.sectionTitle}>Pengaturan</Text>
           <View style={styles.card}>
-            <MenuItem emoji="🏪" label="Pengaturan Toko" onPress={() => navigation.navigate('VendorToko')} />
+            <MenuItem emoji="🏪" label="Pengaturan Toko" sub="Jam buka, QRIS, deskripsi" onPress={() => navigation.navigate('VendorToko')} />
             <View style={styles.itemDivider} />
-            <MenuItem emoji="🍽️" label="Kelola Menu" onPress={() => navigation.navigate('VendorMenu')} />
+            <MenuItem emoji="🔔" label="Notifikasi" sub="Pesanan masuk, promo" onPress={() => {}} />
             <View style={styles.itemDivider} />
-            <MenuItem emoji="📦" label="Pesanan Masuk" onPress={() => navigation.navigate('VendorPesanan')} />
-            <View style={styles.itemDivider} />
-            <MenuItem emoji="📊" label="Dashboard" onPress={() => navigation.navigate('VendorDashboard')} />
+            <MenuItem emoji="🔒" label="Ubah Password" onPress={() => {}} />
           </View>
 
           <View style={styles.card}>
@@ -137,6 +148,8 @@ export default function VendorProfilScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FA' },
+
+  // Header
   header: { paddingTop: 70, paddingBottom: 28, alignItems: 'center' },
   avatarWrapper: { width: 80, height: 80, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   avatarEmoji: { fontSize: 44 },
@@ -144,29 +157,50 @@ const styles = StyleSheet.create({
   headerUsername: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 10 },
   ratingPill: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 6 },
   ratingText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
   content: { padding: 16 },
-  statsRow: { backgroundColor: '#fff', borderRadius: 16, flexDirection: 'row', alignItems: 'center', paddingVertical: 18, marginBottom: 14, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
+
+  // Stats
+  statsRow: { backgroundColor: '#fff', borderRadius: 16, flexDirection: 'row', alignItems: 'center', paddingVertical: 18, marginBottom: 20, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
   statItem: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: 17, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 4 },
   statLabel: { fontSize: 11, color: '#888' },
   statDivider: { width: 1, height: 36, backgroundColor: '#F0F0F0' },
-  tokoCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
-  tokoCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  tokoEmoji: { fontSize: 36 },
-  tokoNama: { fontSize: 15, fontWeight: 'bold', color: '#1A1A1A' },
-  tokoKategori: { fontSize: 12, color: '#888', marginTop: 2 },
-  tokoBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+
+  // Section title
+  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#888', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  // Toko card
+  tokoCard: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20,
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
+  },
+  tokoEmoji: { fontSize: 38 },
+  tokoInfo: { flex: 1 },
+  tokoTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
+  tokoNama: { fontSize: 15, fontWeight: 'bold', color: '#1A1A1A', flex: 1 },
+  tokoBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
   tokoBadgeText: { fontSize: 11, fontWeight: '700' },
-  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#888', marginBottom: 8, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tokoKategori: { fontSize: 12, color: '#888', marginBottom: 2 },
+  tokoJam: { fontSize: 11, color: '#aaa' },
+
+  // Card
   card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 16, marginBottom: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, gap: 12, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+
+  // Info rows
+  infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, gap: 12 },
   infoIcon: { fontSize: 18, width: 28 },
   infoContent: { flex: 1 },
   infoLabel: { fontSize: 11, color: '#888', marginBottom: 2 },
   infoValue: { fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, gap: 12 },
+
+  // Menu items
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
   menuItemEmoji: { fontSize: 20, width: 28 },
-  menuItemLabel: { flex: 1, fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
+  menuItemContent: { flex: 1 },
+  menuItemLabel: { fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
+  menuItemSub: { fontSize: 11, color: '#aaa', marginTop: 2 },
   menuItemChevron: { fontSize: 20, color: '#ccc' },
   itemDivider: { height: 1, backgroundColor: '#F5F5F5' },
 });
