@@ -25,7 +25,7 @@ export default function VendorTokoScreen() {
   const fetchToko = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from('toko').select('*').eq('owner_id', user.id).single();
+    const { data } = await supabase.from('toko').select('*').eq('user_id', user.id).single();
     if (data) {
       setToko(data);
       setNama(data.nama || '');

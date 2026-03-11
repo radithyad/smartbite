@@ -1,14 +1,17 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, ActivityIndicator, View, Platform } from 'react-native';
-import { useState, useEffect } from 'react'
+import { Text, ActivityIndicator, View } from 'react-native';
+import { useState, useEffect } from 'react';
 import { supabase } from './src/service/supabase';
 import { registerForPushNotifications } from './src/service/notification';
 
 // ── Customer Screens ──────────────────────────────────────
 import LoginScreen from './src/screen/LoginScreen';
 import RegisterScreen from './src/screen/RegisterScreen';
+import RolePickerScreen from './src/screen/RolePickerScreen';
+import RegisterVendorScreen from './src/screen/RegisterVendorScreen';
+import PendingVendorScreen from './src/screen/PendingVendorScreen';
 import HomeScreen from './src/screen/HomeScreen';
 import DetailTokoScreen from './src/screen/DetailTokoScreen';
 import KeranjangScreen from './src/screen/KeranjangScreen';
@@ -45,8 +48,8 @@ function MainTab() {
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: '#F0F0F0',
-          height: Platform.OS === 'web' ? 70 : 60,
-          paddingBottom: Platform.OS === 'web' ? 10 : 8,
+          height: 60,
+          paddingBottom: 8,
           paddingTop: 6,
           elevation: 10,
           shadowColor: '#000',
@@ -112,8 +115,6 @@ function VendorTab() {
             VendorDashboard: focused ? '📊' : '📈',
             VendorPesanan:   focused ? '🛎️' : '🔔',
             VendorMenu:      focused ? '🍽️' : '🍴',
-            VendorToko:      focused ? '🏪' : '🏬',
-            VendorProfil:    focused ? '👤' : '👥',
           };
           return (
             <View style={{ alignItems: 'center' }}>
@@ -130,11 +131,9 @@ function VendorTab() {
         },
       })}
     >
-      <Tab.Screen name="VendorDashboard" component={VendorDashboardScreen} options={{ tabBarLabel: 'Dashboard' }} />
+      <Tab.Screen name="VendorDashboard" component={VendorDashboardScreen} options={{ tabBarLabel: 'Beranda' }} />
       <Tab.Screen name="VendorPesanan"   component={VendorPesananScreen}   options={{ tabBarLabel: 'Pesanan' }} />
       <Tab.Screen name="VendorMenu"      component={VendorMenuScreen}      options={{ tabBarLabel: 'Menu' }} />
-      <Tab.Screen name="VendorToko"      component={VendorTokoScreen}      options={{ tabBarLabel: 'Toko' }} />
-      <Tab.Screen name="VendorProfil"    component={VendorProfilScreen}    options={{ tabBarLabel: 'Profil' }} />
     </Tab.Navigator>
   );
 }
@@ -192,15 +191,22 @@ export default function App() {
         {!session ? (
           // ── Not logged in ──
           <>
-            <Stack.Screen name="Login"    component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="Login"          component={LoginScreen} />
+            <Stack.Screen name="RolePicker"     component={RolePickerScreen} />
+            <Stack.Screen name="Register"       component={RegisterScreen} />
+            <Stack.Screen name="RegisterVendor" component={RegisterVendorScreen} />
+          </>
+        ) : role === 'pending_vendor' ? (
+          // ── Pending vendor — menunggu verifikasi admin ──
+          <>
+            <Stack.Screen name="PendingVendor" component={PendingVendorScreen} />
           </>
         ) : role === 'vendor' ? (
           // ── Vendor ──
           <>
             <Stack.Screen name="VendorMain"          component={VendorTab} />
             <Stack.Screen name="VendorDetailPesanan" component={VendorDetailPesananScreen} />
-            <Stack.Screen name="VendorAddMenu"       component={VendorAddMenuScreen} />
+            <Stack.Screen name="VendorAddMenu"    component={VendorAddMenuScreen} />
             <Stack.Screen name="VendorEditMenu"      component={VendorEditMenuScreen} />
           </>
         ) : (

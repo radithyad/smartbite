@@ -20,7 +20,7 @@ export default function VendorAddMenuScreen({ navigation }) {
   const fetchToko = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data: toko } = await supabase.from('toko').select('id').eq('owner_id', user.id).single();
+    const { data: toko } = await supabase.from('toko').select('id').eq('user_id', user.id).single();
     if (toko) setTokoId(toko.id);
   };
 

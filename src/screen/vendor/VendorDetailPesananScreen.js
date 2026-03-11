@@ -1,78 +1,160 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
-import { useState, useEffect } from 'react';
-import { supabase } from '../../service/supabase';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
-export default function VendorDetailPesananScreen({ route, navigation }) {
-  const { orderId } = route.params;
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+// ── DUMMY DATA ────────────────────────────────────────────
+const DUMMY_ORDERS = {
+  'ord-001': {
+    id: 'ord-001',
+    customer: 'Budi Santoso',
+    items: [
+      { nama: 'Nasi Ayam Bakar', qty: 2, harga: 15000 },
+      { nama: 'Es Teh Manis',    qty: 2, harga: 4000  },
+    ],
+    waktu: '11:42',
+    tanggal: 'Sabtu, 7 Juni 2025',
+    status: 'menunggu',
+    total: 38000,
+    metode: 'QRIS',
+    catatan: 'Ayamnya jangan gosong ya kak, sama nasinya jangan terlalu banyak',
+    bukti_url: 'https://placehold.co/400x300/E3F2FD/1565C0?text=Bukti+Bayar',
+  },
+  'ord-002': {
+    id: 'ord-002',
+    customer: 'Siti Rahma',
+    items: [
+      { nama: 'Nasi Goreng Spesial', qty: 1, harga: 18000 },
+      { nama: 'Jus Jeruk',           qty: 1, harga: 7000  },
+    ],
+    waktu: '11:30',
+    tanggal: 'Sabtu, 7 Juni 2025',
+    status: 'diproses',
+    total: 25000,
+    metode: 'Transfer',
+    catatan: '',
+    bukti_url: 'https://placehold.co/400x300/E3F2FD/1565C0?text=Bukti+Transfer',
+  },
+  'ord-003': {
+    id: 'ord-003',
+    customer: 'Andi Wijaya',
+    items: [{ nama: 'Mie Goreng', qty: 2, harga: 12000 }],
+    waktu: '11:15',
+    tanggal: 'Sabtu, 7 Juni 2025',
+    status: 'siap',
+    total: 24000,
+    metode: 'Tunai',
+    catatan: '',
+    bukti_url: null,
+  },
+};
 
-  useEffect(() => { fetchOrder(); }, []);
+const STATUS_INFO = {
+  menunggu: { bg: '#FFF8E1', color: '#F57F17', label: '🔔 Menunggu Konfirmasi' },
+  diproses: { bg: '#E3F2FD', color: '#1565C0', label: '👨‍🍳 Sedang Diproses'    },
+  siap:     { bg: '#E8F5E9', color: '#2E7D32', label: '✅ Siap Diambil'         },
+  selesai:  { bg: '#F5F5F5', color: '#888',    label: '🏁 Selesai'              },
+  ditolak:  { bg: '#FFEBEE', color: '#C62828', label: '❌ Ditolak'              },
+};
+// ─────────────────────────────────────────────────────────
 
-  const fetchOrder = async () => {
-    const { data } = await supabase
-      .from('orders')
-      .select('*, order_items(nama_menu, qty, harga)')
-      .eq('id', orderId)
-      .single();
-    setOrder(data);
-    setLoading(false);
-  };
+export default function VendorDetailPesananScreen({ navigation, route }) {
+  const orderId = route?.params?.orderId || 'ord-001';
+  const order = DUMMY_ORDERS[orderId] || DUMMY_ORDERS['ord-001'];
+  const statusInfo = STATUS_INFO[order.status] || STATUS_INFO['menunggu'];
 
-  const updateStatus = (newStatus, confirmMsg) => {
-    Alert.alert('Konfirmasi', confirmMsg, [
+  const handleTerima = () => {
+    Alert.alert('Terima Pesanan?', 'Pesanan akan mulai diproses.', [
       { text: 'Batal', style: 'cancel' },
-      { text: 'Ya', onPress: async () => {
-        await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
-        await fetchOrder();
-      }},
+      { text: 'Terima', onPress: () => navigation.goBack() },
     ]);
   };
 
-  const STATUS_INFO = {
-    menunggu:   { bg: '#FFF8E1', color: '#F57F17', label: '🔔 Menunggu Konfirmasi' },
-    diproses:   { bg: '#E3F2FD', color: '#1565C0', label: '👨‍🍳 Sedang Diproses' },
-    siap:       { bg: '#E8F5E9', color: '#2E7D32', label: '✅ Siap Diambil' },
-    selesai:    { bg: '#F5F5F5', color: '#888',    label: '☑️ Selesai' },
-    ditolak:    { bg: '#FFEBEE', color: '#C62828', label: '❌ Ditolak' },
-    dibatalkan: { bg: '#FFEBEE', color: '#C62828', label: '🚫 Dibatalkan Customer' },
+  const handleTolak = () => {
+    Alert.alert('Tolak Pesanan?', 'Pesanan akan ditolak dan customer akan diberitahu.', [
+      { text: 'Batal', style: 'cancel' },
+      { text: 'Tolak', style: 'destructive', onPress: () => navigation.goBack() },
+    ]);
   };
 
-  if (loading) return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#1565C0" /></View>;
-  if (!order) return <View style={styles.loadingContainer}><Text>Pesanan tidak ditemukan</Text></View>;
+  const handleSiap = () => {
+    Alert.alert('Pesanan Siap?', 'Tandai pesanan siap diambil oleh customer.', [
+      { text: 'Batal', style: 'cancel' },
+      { text: 'Siap!', onPress: () => navigation.goBack() },
+    ]);
+  };
 
-  const s = STATUS_INFO[order.status] || STATUS_INFO['menunggu'];
+  const handleSelesai = () => {
+    Alert.alert('Tandai Selesai?', 'Pesanan sudah diambil oleh customer.', [
+      { text: 'Batal', style: 'cancel' },
+      { text: 'Selesai', onPress: () => navigation.goBack() },
+    ]);
+  };
+
+  const handleNotifCustomer = () => {
+    Alert.alert(
+      '🔔 Kirim Notifikasi',
+      'Pilih estimasi waktu untuk dikirim ke customer:',
+      [
+        { text: '⏱ Siap dalam 10 menit', onPress: () => Alert.alert('Terkirim! ✅', 'Customer sudah diberitahu pesanan siap dalam 10 menit.') },
+        { text: '⏱ Siap dalam 5 menit',  onPress: () => Alert.alert('Terkirim! ✅', 'Customer sudah diberitahu pesanan siap dalam 5 menit.')  },
+        { text: '⏱ Siap dalam 2 menit',  onPress: () => Alert.alert('Terkirim! ✅', 'Customer sudah diberitahu pesanan siap dalam 2 menit.')  },
+        { text: 'Batal', style: 'cancel' },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
 
-      {/* Header */}
+      {/* ── Header — CheckoutScreen style ── */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
           <Text style={styles.backIcon}>‹</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Detail Pesanan</Text>
-          <Text style={styles.headerSub}>#{order.id.split('-')[0].toUpperCase()}</Text>
+          <Text style={styles.headerSub}>#{order.id.toUpperCase()}</Text>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
-        {/* Status */}
-        <View style={[styles.statusBanner, { backgroundColor: s.bg, borderColor: s.color + '55' }]}>
-          <Text style={[styles.statusText, { color: s.color }]}>{s.label}</Text>
-          <Text style={styles.statusTime}>
-            {new Date(order.created_at).toLocaleString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-          </Text>
+        {/* Status Banner */}
+        <View style={[styles.statusBanner, { backgroundColor: statusInfo.bg }]}>
+          <Text style={[styles.statusBannerLabel, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+          <Text style={[styles.statusBannerTime,  { color: statusInfo.color }]}>🕐 {order.waktu} · {order.tanggal}</Text>
         </View>
 
-        {/* Item Pesanan */}
+        {/* Info Pemesan */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>🧾 Item Pesanan</Text>
-          {order.order_items?.map((item, i) => (
+          <Text style={styles.cardTitle}>👤 Info Pemesan</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Nama</Text>
+            <Text style={styles.infoValue}>{order.customer}</Text>
+          </View>
+          <View style={[styles.infoRow, { marginBottom: 0 }]}>
+            <Text style={styles.infoLabel}>Metode Bayar</Text>
+            <View style={[
+              styles.metodeBadge,
+              order.metode === 'QRIS'     && { backgroundColor: '#F3E5F5' },
+              order.metode === 'Transfer' && { backgroundColor: '#E3F2FD' },
+              order.metode === 'Tunai'    && { backgroundColor: '#E8F5E9' },
+            ]}>
+              <Text style={[
+                styles.metodeText,
+                order.metode === 'QRIS'     && { color: '#6A1B9A' },
+                order.metode === 'Transfer' && { color: '#1565C0' },
+                order.metode === 'Tunai'    && { color: '#2E7D32' },
+              ]}>💳 {order.metode}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Daftar Pesanan */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🍽️ Daftar Pesanan</Text>
+          {order.items.map((item, i) => (
             <View key={i} style={styles.itemRow}>
-              <Text style={styles.itemNama}>{item.nama_menu}</Text>
+              <Text style={styles.itemNama}>{item.nama}</Text>
               <Text style={styles.itemQty}>x{item.qty}</Text>
               <Text style={styles.itemHarga}>Rp {(item.harga * item.qty).toLocaleString('id-ID')}</Text>
             </View>
@@ -80,58 +162,80 @@ export default function VendorDetailPesananScreen({ route, navigation }) {
           <View style={styles.divider} />
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Pembayaran</Text>
-            <Text style={styles.totalValue}>Rp {order.total_harga.toLocaleString('id-ID')}</Text>
+            <Text style={styles.totalValue}>Rp {order.total.toLocaleString('id-ID')}</Text>
           </View>
-        </View>
-
-        {/* Info Pembayaran */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>💳 Pembayaran</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Metode</Text>
-            <Text style={styles.infoValue}>{order.metode_bayar}</Text>
-          </View>
-          {order.bukti_bayar_url && (
-            <View style={styles.buktiBayarContainer}>
-              <Text style={styles.infoLabel}>Bukti Bayar</Text>
-              <Image source={{ uri: order.bukti_bayar_url }} style={styles.buktiBayarImage} resizeMode="contain" />
-            </View>
-          )}
         </View>
 
         {/* Catatan */}
-        {order.catatan ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📝 Catatan Customer</Text>
+          {order.catatan ? (
+            <View style={styles.catatanBox}>
+              <Text style={styles.catatanText}>{order.catatan}</Text>
+            </View>
+          ) : (
+            <Text style={styles.noCatatan}>Tidak ada catatan dari customer</Text>
+          )}
+        </View>
+
+        {/* Bukti Bayar */}
+        {(order.metode === 'QRIS' || order.metode === 'Transfer') && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>📝 Catatan dari Customer</Text>
-            <Text style={styles.catatanText}>{order.catatan}</Text>
-          </View>
-        ) : null}
-
-        {/* Action Buttons */}
-        {order.status === 'menunggu' && (
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.btnTolak} onPress={() => updateStatus('ditolak', 'Tolak pesanan ini?')} activeOpacity={0.8}>
-              <Text style={styles.btnTolakText}>❌ Tolak</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnTerima} onPress={() => updateStatus('diproses', 'Terima dan mulai proses pesanan ini?')} activeOpacity={0.8}>
-              <Text style={styles.btnTerimaText}>✅ Terima & Proses</Text>
-            </TouchableOpacity>
+            <Text style={styles.cardTitle}>🧾 Bukti Pembayaran</Text>
+            {order.bukti_url ? (
+              <Image source={{ uri: order.bukti_url }} style={styles.buktiBayarImg} resizeMode="cover" />
+            ) : (
+              <View style={styles.buktiEmpty}>
+                <Text style={styles.buktiEmptyEmoji}>📷</Text>
+                <Text style={styles.buktiEmptyText}>Bukti pembayaran belum dikirim</Text>
+              </View>
+            )}
           </View>
         )}
 
-        {order.status === 'diproses' && (
-          <TouchableOpacity style={styles.btnSiap} onPress={() => updateStatus('siap', 'Tandai pesanan siap diambil?')} activeOpacity={0.8}>
-            <Text style={styles.btnSiapText}>🔔 Tandai Siap Diambil</Text>
-          </TouchableOpacity>
-        )}
+        {/* ── Action Buttons ── */}
+        <View style={styles.actionRow}>
 
-        {order.status === 'siap' && (
-          <TouchableOpacity style={styles.btnSelesai} onPress={() => updateStatus('selesai', 'Pesanan sudah diambil customer?')} activeOpacity={0.8}>
-            <Text style={styles.btnSelesaiText}>✅ Tandai Sudah Diambil</Text>
-          </TouchableOpacity>
-        )}
+          {/* MENUNGGU: 3 button sama besar */}
+          {order.status === 'menunggu' && (
+            <>
+              <TouchableOpacity style={[styles.btn, styles.btnOutlineRed]} onPress={handleTolak} activeOpacity={0.8}>
+                <Text style={styles.btnTextRed}>❌ Tolak</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleTerima} activeOpacity={0.8}>
+                <LinearGradient colors={['#1565C0', '#42A5F5']} style={styles.btnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <Text style={styles.btnTextWhite}>✅ Terima</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </>
+          )}
 
-        <View style={{ height: 40 }} />
+          {/* DIPROSES: 2 button sama besar */}
+          {order.status === 'diproses' && (
+            <>
+              <TouchableOpacity style={[styles.btn, styles.btnOutlineYellow]} onPress={handleNotifCustomer} activeOpacity={0.8}>
+                <Text style={styles.btnTextYellow}>🔔 Notif Customer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleSiap} activeOpacity={0.8}>
+                <LinearGradient colors={['#1565C0', '#42A5F5']} style={styles.btnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <Text style={styles.btnTextWhite}>🍽️ Tandai Siap</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* SIAP: 1 button full width */}
+          {order.status === 'siap' && (
+            <TouchableOpacity style={[styles.btn, styles.btnPrimary, { flex: 1 }]} onPress={handleSelesai} activeOpacity={0.8}>
+              <LinearGradient colors={['#1565C0', '#42A5F5']} style={styles.btnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <Text style={styles.btnTextWhite}>✅ Tandai Sudah Diambil</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+        </View>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
     </View>
   );
@@ -139,40 +243,80 @@ export default function VendorDetailPesananScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FA' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingTop: 55, paddingBottom: 16, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  backButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F7FA', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  backIcon: { fontSize: 26, color: '#1A1A1A', lineHeight: 30, marginTop: -2 },
+
+  // ── Header — CheckoutScreen style ──
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingTop: 55, paddingBottom: 16, paddingHorizontal: 16,
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
+  },
+  backButton: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#F5F7FA',
+    justifyContent: 'center', alignItems: 'center',
+    marginRight: 12,
+  },
+  backIcon: { fontSize: 26, color: '#1a1a1a', lineHeight: 30, marginTop: -2 },
   headerCenter: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1A1A1A' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1a1a1a' },
   headerSub: { fontSize: 12, color: '#888', marginTop: 1 },
-  content: { padding: 16 },
-  statusBanner: { borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1 },
-  statusText: { fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
-  statusTime: { fontSize: 12, color: '#888' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
-  cardTitle: { fontSize: 14, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 14 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  itemNama: { flex: 1, fontSize: 13, color: '#1A1A1A' },
-  itemQty: { fontSize: 13, color: '#888', marginRight: 12 },
-  itemHarga: { fontSize: 13, fontWeight: '700', color: '#1565C0' },
-  divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 10 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: 14, fontWeight: 'bold', color: '#1A1A1A' },
-  totalValue: { fontSize: 16, fontWeight: 'bold', color: '#1565C0' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+
+  content: { paddingHorizontal: 16, paddingTop: 16 },
+
+  // Status Banner
+  statusBanner: { borderRadius: 14, padding: 16, marginBottom: 12 },
+  statusBannerLabel: { fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
+  statusBannerTime: { fontSize: 12, opacity: 0.8 },
+
+  // Card
+  card: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12,
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
+  },
+  cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 14 },
+
+  // Info rows
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   infoLabel: { fontSize: 13, color: '#888' },
   infoValue: { fontSize: 13, fontWeight: '600', color: '#1A1A1A' },
-  buktiBayarContainer: { marginTop: 10 },
-  buktiBayarImage: { width: '100%', height: 200, borderRadius: 12, marginTop: 8, backgroundColor: '#F5F7FA' },
-  catatanText: { fontSize: 13, color: '#444', lineHeight: 20 },
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  btnTolak: { flex: 1, backgroundColor: '#FFF3F3', borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#EF5350' },
-  btnTolakText: { color: '#EF5350', fontWeight: '700', fontSize: 14 },
-  btnTerima: { flex: 2, backgroundColor: '#1565C0', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  btnTerimaText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  btnSiap: { backgroundColor: '#E8F5E9', borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#4CAF50' },
-  btnSiapText: { color: '#2E7D32', fontWeight: '700', fontSize: 15 },
-  btnSelesai: { backgroundColor: '#E3F2FD', borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#1565C0' },
-  btnSelesaiText: { color: '#1565C0', fontWeight: '700', fontSize: 15 },
+  metodeBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  metodeText: { fontSize: 12, fontWeight: '700' },
+
+  // Items
+  itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  itemNama: { flex: 1, fontSize: 13, color: '#1A1A1A', fontWeight: '500' },
+  itemQty: { fontSize: 13, color: '#888', marginRight: 12 },
+  itemHarga: { fontSize: 13, fontWeight: '700', color: '#1565C0' },
+  divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 12 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: 15, fontWeight: 'bold', color: '#1a1a1a' },
+  totalValue: { fontSize: 15, fontWeight: 'bold', color: '#1565C0' },
+
+  // Catatan
+  catatanBox: { backgroundColor: '#FFF8E1', borderRadius: 10, padding: 12, borderLeftWidth: 3, borderLeftColor: '#FFC107' },
+  catatanText: { fontSize: 13, color: '#F57F17', lineHeight: 20 },
+  noCatatan: { fontSize: 13, color: '#ccc', fontStyle: 'italic' },
+
+  // Bukti bayar
+  buktiBayarImg: { width: '100%', height: 200, borderRadius: 12 },
+  buktiEmpty: { height: 120, backgroundColor: '#F5F7FA', borderRadius: 12, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  buktiEmptyEmoji: { fontSize: 36 },
+  buktiEmptyText: { fontSize: 13, color: '#888' },
+
+  // ── Buttons — all equal size, same style ──
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  btn: { flex: 1, borderRadius: 10, overflow: 'hidden' },
+
+  btnOutlineRed:    { backgroundColor: '#FFF3F3', borderWidth: 1, borderColor: '#EF5350', paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
+  btnTextRed:       { color: '#EF5350', fontWeight: '600', fontSize: 13 },
+
+  btnOutlineGray:   { backgroundColor: '#F5F7FA', borderWidth: 1, borderColor: '#E0E0E0', paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
+  btnTextGray:      { color: '#555', fontWeight: '600', fontSize: 13 },
+
+  btnOutlineYellow: { backgroundColor: '#FFF8E1', borderWidth: 1, borderColor: '#FFC107', paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
+  btnTextYellow:    { color: '#F57F17', fontWeight: '600', fontSize: 13 },
+
+  btnPrimary: { elevation: 2, shadowColor: '#1565C0', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  btnGradient: { paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
+  btnTextWhite: { color: '#fff', fontWeight: '700', fontSize: 13 },
 });

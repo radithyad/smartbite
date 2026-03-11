@@ -124,7 +124,7 @@ export default function LoginScreen({ navigation }) {
 
           <View style={styles.registerRow}>
             <Text style={styles.registerText}>Belum punya akun? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <TouchableOpacity onPress={() => navigation.navigate('RolePicker')}>
               <Text style={styles.registerLink}>Daftar sekarang</Text>
             </TouchableOpacity>
           </View>

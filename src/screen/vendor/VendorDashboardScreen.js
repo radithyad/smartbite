@@ -1,212 +1,159 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../../service/supabase';
+import { useState } from 'react';
+
+// ── DUMMY DATA ────────────────────────────────────────────
+const DUMMY_TOKO = {
+  nama: 'Warung Bu Sari',
+  emoji: '🍱',
+  aktif: true,
+  jam_buka: '07:00',
+  jam_tutup: '16:00',
+  kategori: 'Nasi & Lauk',
+  foto_url: null,
+};
+
+const DUMMY_STATS = {
+  hariIni: 185000,
+  orderAktif: 3,
+  selesaiHariIni: 12,
+};
+
+const DUMMY_ORDERS = [
+  { id: 'ord-001', items: 'Nasi Ayam x2, Es Teh x2',       waktu: '11:42', status: 'menunggu', total: 38000 },
+  { id: 'ord-002', items: 'Nasi Goreng x1, Jus Jeruk x1',  waktu: '11:30', status: 'diproses', total: 25000 },
+  { id: 'ord-003', items: 'Mie Goreng x2',                 waktu: '11:15', status: 'siap',     total: 24000 },
+  { id: 'ord-004', items: 'Nasi Soto x1',                  waktu: '10:55', status: 'selesai',  total: 15000 },
+  { id: 'ord-005', items: 'Nasi Rendang x1, Teh Manis x1', waktu: '10:30', status: 'selesai',  total: 28000 },
+];
+
+const STATUS_INFO = {
+  menunggu: { bg: '#FFF8E1', color: '#F57F17', label: 'Menunggu' },
+  diproses: { bg: '#E3F2FD', color: '#1565C0', label: 'Diproses' },
+  siap:     { bg: '#E8F5E9', color: '#2E7D32', label: 'Siap'     },
+  selesai:  { bg: '#F5F5F5', color: '#888',    label: 'Selesai'  },
+  ditolak:  { bg: '#FFEBEE', color: '#C62828', label: 'Ditolak'  },
+};
+// ─────────────────────────────────────────────────────────
 
 export default function VendorDashboardScreen({ navigation }) {
-  const [toko, setToko] = useState(null);
-  const [stats, setStats] = useState({ hariIni: 0, bulanIni: 0, totalOrder: 0, orderAktif: 0 });
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [tokoAktif, setTokoAktif] = useState(DUMMY_TOKO.aktif);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, []));
-
-  const fetchData = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Ambil toko milik vendor ini
-    const { data: tokoData } = await supabase
-      .from('toko')
-      .select('*')
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!tokoData) { setLoading(false); return; }
-    setToko(tokoData);
-
-    const tokoId = tokoData.id;
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-
-    // Semua orders toko ini
-    const { data: allOrders } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('toko_id', tokoId)
-      .eq('status', 'selesai');
-
-    // Order hari ini
-    const { data: todayOrders } = await supabase
-      .from('orders')
-      .select('total_harga')
-      .eq('toko_id', tokoId)
-      .eq('status', 'selesai')
-      .gte('created_at', startOfDay);
-
-    // Order bulan ini
-    const { data: monthOrders } = await supabase
-      .from('orders')
-      .select('total_harga')
-      .eq('toko_id', tokoId)
-      .eq('status', 'selesai')
-      .gte('created_at', startOfMonth);
-
-    // Order aktif (menunggu + diproses + siap)
-    const { data: aktifOrders } = await supabase
-      .from('orders')
-      .select('id')
-      .eq('toko_id', tokoId)
-      .in('status', ['menunggu', 'diproses', 'siap']);
-
-    // 5 order terbaru
-    const { data: recent } = await supabase
-      .from('orders')
-      .select('*, order_items(nama_menu, qty)')
-      .eq('toko_id', tokoId)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    setStats({
-      hariIni: todayOrders?.reduce((s, o) => s + o.total_harga, 0) || 0,
-      bulanIni: monthOrders?.reduce((s, o) => s + o.total_harga, 0) || 0,
-      totalOrder: allOrders?.length || 0,
-      orderAktif: aktifOrders?.length || 0,
-    });
-    setRecentOrders(recent || []);
-    setLoading(false);
-  };
-
-  const STATUS_COLOR = {
-    menunggu:   { bg: '#FFF8E1', color: '#F57F17', label: 'Menunggu' },
-    diproses:   { bg: '#E3F2FD', color: '#1565C0', label: 'Diproses' },
-    siap:       { bg: '#E8F5E9', color: '#2E7D32', label: 'Siap' },
-    selesai:    { bg: '#F5F5F5', color: '#888',    label: 'Selesai' },
-    dibatalkan: { bg: '#FFEBEE', color: '#C62828', label: 'Dibatalkan' },
-    ditolak:    { bg: '#FFEBEE', color: '#C62828', label: 'Ditolak' },
-  };
-
-  if (loading) return (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#1565C0" />
-    </View>
-  );
+  const today = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
 
-        {/* Header */}
+        {/* ── Header ── */}
         <LinearGradient colors={['#1565C0', '#42A5F5']} style={styles.header}>
-          <View>
-            <Text style={styles.headerSub}>Selamat datang 👋</Text>
-            <Text style={styles.headerTitle}>{toko?.nama || 'Toko Saya'}</Text>
-            <View style={[styles.statusPill, { backgroundColor: toko?.aktif ? 'rgba(76,175,80,0.25)' : 'rgba(239,83,80,0.25)' }]}>
-              <Text style={[styles.statusPillText, { color: toko?.aktif ? '#A5D6A7' : '#EF9A9A' }]}>
-                {toko?.aktif ? '🟢 Toko Buka' : '🔴 Toko Tutup'}
-              </Text>
+
+          {/* Top row */}
+          <View style={styles.headerTop}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerDate}>{today}</Text>
+              <Text style={styles.headerGreeting}>Hi, {DUMMY_TOKO.nama}!</Text>
+              <Text style={styles.headerKategori}>{DUMMY_TOKO.kategori}</Text>
             </View>
+
+            {/* Profile button — same as HomeScreen */}
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => navigation.navigate('VendorProfil')}
+              activeOpacity={0.8}
+            >
+              {DUMMY_TOKO.foto_url ? (
+                <Image source={{ uri: DUMMY_TOKO.foto_url }} style={styles.profileImage} />
+              ) : (
+                <View style={styles.profilePlaceholder}>
+                  <Text style={{ fontSize: 20 }}>👤</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
-          <Text style={styles.headerEmoji}>{toko?.emoji || '🏪'}</Text>
+
+          {/* Toggle buka/tutup */}
+          <View style={styles.toggleCard}>
+            <View style={styles.toggleLeft}>
+              <View style={[styles.toggleDot, { backgroundColor: tokoAktif ? '#4CAF50' : '#EF5350' }]} />
+              <View>
+                <Text style={styles.toggleLabel}>{tokoAktif ? 'Toko Sedang Buka' : 'Toko Sedang Tutup'}</Text>
+                <Text style={styles.toggleSub}>Jam operasional: {DUMMY_TOKO.jam_buka} – {DUMMY_TOKO.jam_tutup}</Text>
+              </View>
+            </View>
+            <Switch
+              value={tokoAktif}
+              onValueChange={setTokoAktif}
+              trackColor={{ false: 'rgba(239,83,80,0.35)', true: 'rgba(76,175,80,0.35)' }}
+              thumbColor={tokoAktif ? '#4CAF50' : '#EF5350'}
+            />
+          </View>
+
         </LinearGradient>
 
-        <View style={styles.content}>
+        {/* ── Body container ── */}
+        <View style={styles.bodyContainer}>
 
-          {/* Stats Grid */}
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { flex: 1 }]}>
-              <Text style={styles.statIcon}>💰</Text>
-              <Text style={styles.statValue}>Rp {(stats.hariIni / 1000).toFixed(0)}k</Text>
-              <Text style={styles.statLabel}>Pemasukan Hari Ini</Text>
-            </View>
-            <View style={[styles.statCard, { flex: 1 }]}>
-              <Text style={styles.statIcon}>📅</Text>
-              <Text style={styles.statValue}>Rp {(stats.bulanIni / 1000).toFixed(0)}k</Text>
-              <Text style={styles.statLabel}>Bulan Ini</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsGrid}>
+          {/* Stats 3 kolom */}
+          <View style={styles.statsRow}>
             <TouchableOpacity
-              style={[styles.statCard, { flex: 1 }]}
+              style={[styles.statCard]}
               onPress={() => navigation.navigate('VendorPesanan')}
               activeOpacity={0.8}
             >
               <Text style={styles.statIcon}>🛎️</Text>
-              <Text style={[styles.statValue, stats.orderAktif > 0 && { color: '#E65100' }]}>
-                {stats.orderAktif}
-              </Text>
-              <Text style={styles.statLabel}>Pesanan Aktif</Text>
-              {stats.orderAktif > 0 && <View style={styles.alertDot} />}
+              <Text style={[styles.statValue, { color: '#E65100' }]}>{DUMMY_STATS.orderAktif}</Text>
+              <Text style={styles.statLabel}>Pesanan{'\n'}Aktif</Text>
+              {DUMMY_STATS.orderAktif > 0 && <View style={styles.alertDot} />}
             </TouchableOpacity>
-            <View style={[styles.statCard, { flex: 1 }]}>
+
+            <View style={styles.statCard}>
+              <Text style={styles.statIcon}>💰</Text>
+              <Text style={styles.statValue}>Rp {(DUMMY_STATS.hariIni / 1000).toFixed(0)}k</Text>
+              <Text style={styles.statLabel}>Pemasukan{'\n'}Hari Ini</Text>
+            </View>
+
+            <View style={styles.statCard}>
               <Text style={styles.statIcon}>✅</Text>
-              <Text style={styles.statValue}>{stats.totalOrder}</Text>
-              <Text style={styles.statLabel}>Total Selesai</Text>
+              <Text style={styles.statValue}>{DUMMY_STATS.selesaiHariIni}</Text>
+              <Text style={styles.statLabel}>Pesanan Selesai{'\n'}Hari Ini</Text>
             </View>
           </View>
 
-          {/* Quick Actions */}
-          <Text style={styles.sectionTitle}>Aksi Cepat</Text>
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('VendorPesanan')} activeOpacity={0.8}>
-              <Text style={styles.quickBtnIcon}>🛎️</Text>
-              <Text style={styles.quickBtnLabel}>Pesanan Masuk</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('VendorTambahMenu')} activeOpacity={0.8}>
-              <Text style={styles.quickBtnIcon}>➕</Text>
-              <Text style={styles.quickBtnLabel}>Tambah Menu</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('VendorToko')} activeOpacity={0.8}>
-              <Text style={styles.quickBtnIcon}>⚙️</Text>
-              <Text style={styles.quickBtnLabel}>Atur Toko</Text>
+          {/* Pesanan Terbaru */}
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Pesanan Terbaru</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('VendorPesanan')} activeOpacity={0.7}>
+              <Text style={styles.seeAll}>Lihat semua →</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Recent Orders */}
-          {recentOrders.length > 0 && (
-            <>
-              <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Pesanan Terbaru</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('VendorPesanan')}>
-                  <Text style={styles.seeAll}>Lihat semua →</Text>
-                </TouchableOpacity>
-              </View>
+          {DUMMY_ORDERS.map((order) => {
+            const s = STATUS_INFO[order.status];
+            return (
+              <TouchableOpacity
+                key={order.id}
+                style={styles.orderCard}
+                onPress={() => navigation.navigate('VendorDetailPesanan', { orderId: order.id })}
+                activeOpacity={0.8}
+              >
+                <View style={styles.orderLeft}>
+                  <Text style={styles.orderId}>#{order.id.toUpperCase()}</Text>
+                  <Text style={styles.orderItems} numberOfLines={1}>{order.items}</Text>
+                  <Text style={styles.orderTime}>🕐 {order.waktu}</Text>
+                </View>
+                <View style={styles.orderRight}>
+                  <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
+                    <Text style={[styles.statusText, { color: s.color }]}>{s.label}</Text>
+                  </View>
+                  <Text style={styles.orderTotal}>Rp {order.total.toLocaleString('id-ID')}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
 
-              {recentOrders.map((order) => {
-                const s = STATUS_COLOR[order.status] || STATUS_COLOR['menunggu'];
-                return (
-                  <TouchableOpacity
-                    key={order.id}
-                    style={styles.orderCard}
-                    onPress={() => navigation.navigate('VendorDetailPesanan', { orderId: order.id })}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.orderCardLeft}>
-                      <Text style={styles.orderId}>#{order.id.split('-')[0].toUpperCase()}</Text>
-                      <Text style={styles.orderItems} numberOfLines={1}>
-                        {order.order_items?.map(i => `${i.nama_menu} x${i.qty}`).join(', ')}
-                      </Text>
-                      <Text style={styles.orderTime}>
-                        {new Date(order.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
-                    <View style={styles.orderCardRight}>
-                      <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
-                        <Text style={[styles.statusText, { color: s.color }]}>{s.label}</Text>
-                      </View>
-                      <Text style={styles.orderTotal}>Rp {order.total_harga.toLocaleString('id-ID')}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </>
-          )}
-
-          <View style={{ height: 24 }} />
         </View>
       </ScrollView>
     </View>
@@ -215,33 +162,78 @@ export default function VendorDashboardScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FA' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 28, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 4 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
-  headerEmoji: { fontSize: 52, marginTop: 8 },
-  statusPill: { alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 4 },
-  statusPillText: { fontSize: 12, fontWeight: '700' },
-  content: { padding: 20 },
-  statsGrid: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  statCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, position: 'relative' },
-  statIcon: { fontSize: 24, marginBottom: 8 },
-  statValue: { fontSize: 20, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 4 },
-  statLabel: { fontSize: 11, color: '#888', fontWeight: '500' },
-  alertDot: { position: 'absolute', top: 12, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: '#E65100' },
-  sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 12, marginTop: 8 },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 8 },
+
+  // ── Header ──
+  header: { paddingTop: 58, paddingHorizontal: 20, paddingBottom: 32 },
+
+  headerTop: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'flex-start', marginBottom: 20,
+  },
+  headerDate: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)', marginBottom: 5 },
+  headerGreeting: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 3 },
+  headerKategori: { fontSize: 13, color: 'rgba(255,255,255,0.75)' },
+
+  // Profile button — same as HomeScreen
+  profileButton: { padding: 2 },
+  profileImage: {
+    width: 42, height: 42, borderRadius: 21,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)',
+  },
+  profilePlaceholder: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)',
+  },
+
+  // Toggle card
+  toggleCard: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  toggleDot: { width: 10, height: 10, borderRadius: 5 },
+  toggleLabel: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  toggleSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+
+  // ── Body ──
+  bodyContainer: {
+    backgroundColor: '#F5F7FA',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    marginTop: -20, padding: 20,
+  },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  statCard: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 14,
+    alignItems: 'center', position: 'relative',
+    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6,
+  },
+  statIcon: { fontSize: 22, marginBottom: 6 },
+  statValue: { fontSize: 16, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 4, textAlign: 'center' },
+  statLabel: { fontSize: 10, color: '#888', fontWeight: '500', textAlign: 'center', lineHeight: 14 },
+  alertDot: {
+    position: 'absolute', top: 10, right: 10,
+    width: 8, height: 8, borderRadius: 4, backgroundColor: '#E65100',
+  },
+
+  // Pesanan terbaru
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#1A1A1A' },
   seeAll: { fontSize: 13, color: '#1565C0', fontWeight: '600' },
-  quickActions: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  quickBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
-  quickBtnIcon: { fontSize: 26, marginBottom: 6 },
-  quickBtnLabel: { fontSize: 11, fontWeight: '600', color: '#1A1A1A', textAlign: 'center' },
-  orderCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
-  orderCardLeft: { flex: 1, marginRight: 12 },
+  orderCard: {
+    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
+  },
+  orderLeft: { flex: 1, marginRight: 12 },
   orderId: { fontSize: 13, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 3 },
   orderItems: { fontSize: 12, color: '#888', marginBottom: 3 },
   orderTime: { fontSize: 11, color: '#aaa' },
-  orderCardRight: { alignItems: 'flex-end', gap: 6 },
+  orderRight: { alignItems: 'flex-end', gap: 6 },
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
   orderTotal: { fontSize: 13, fontWeight: 'bold', color: '#1565C0' },
