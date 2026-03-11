@@ -241,12 +241,17 @@ export default function RegisterVendorScreen({ navigation }) {
             <>
               <View style={styles.inputWrapper}>
                 <Text style={styles.inputLabel}>Nama Lengkap</Text>
-                <TextInput style={styles.input} placeholder="isi namamu sesuai KTP yaa" placeholderTextColor="#aaa" value={nama} onChangeText={setNama} />
+                <TextInput style={styles.input} placeholder="Sesuai KTP" placeholderTextColor="#aaa" value={nama} onChangeText={setNama} />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Username</Text>
+                <TextInput style={styles.input} placeholder="Contoh: toko_bu_sari" placeholderTextColor="#aaa" autoCapitalize="none" value={username} onChangeText={(t) => setUsername(t.toLowerCase().replace(/\s/g, ''))} />
               </View>
 
               <View style={styles.inputWrapper}>
                 <Text style={styles.inputLabel}>Email</Text>
-                <TextInput style={styles.input} placeholder="emailmu@gmail.com" placeholderTextColor="#aaa" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
+                <TextInput style={styles.input} placeholder="email@example.com" placeholderTextColor="#aaa" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
               </View>
 
               <View style={styles.inputWrapper}>
